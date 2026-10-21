@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>하나바이블 퀴즈 대회</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f4f6f9; color: #333; padding: 20px; display: flex; justify-content: center; }
+    .container { max-width: 680px; width: 100%; background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    
+    header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; }
+    h1 { font-size: 1.6rem; color: #1e293b; margin-bottom: 8px; }
+    .sub-title { font-size: 0.95rem; color: #64748b; }
+    
+    /* 대시보드 및 통계 카드 */
+    .dashboard-cards { display: flex; gap: 10px; margin-bottom: 20px; }
+    .stat-card { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; text-align: center; }
+    .stat-card .num { font-size: 1.3rem; font-weight: 800; margin-top: 4px; }
+    .stat-card.total .num { color: #3b82f6; }
+    .stat-card.correct .num { color: #22c55e; }
+    .stat-card.wrong .num { color: #ef4444; }
+
+    /* 네비게이션 버튼 */
+    .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.95rem; background: #e2e8f0; color: #475569; transition: all 0.2s; }
+    .tab-btn.active { background: #3b82f6; color: #fff; }
+    .tab-btn.wrong-tab { background: #fee2e2; color: #b91c1c; }
+    .tab-btn.wrong-tab.active { background: #ef4444; color: #fff; }
+
+    /* 문제 번호 그리드 매트릭스 */
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 8px; max-height: 400px; overflow-y: auto; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .grid-btn { height: 44px; border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.15s; }
+    .grid-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+    .grid-btn.correct { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+    .grid-btn.wrong { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+
+    /* 문제 풀이 화면 */
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    .back-btn { display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-weight: 700; color: #475569; cursor: pointer; margin-bottom: 15px; }
+    .back-btn:hover { background: #e2e8f0; }
+
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .lesson-badge { display: inline-block; background: #e0f2fe; color: #0369a1; font-size: 0.85rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; margin-bottom: 12px; }
+    .question-text { font-size: 1.1rem; font-weight: 700; line-height: 1.5; color: #1e293b; margin-bottom: 18px; }
+    
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn { width: 100%; text-align: left; padding: 13px 16px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+    .option-btn:hover { background: #f1f5f9; }
+    .option-btn.selected { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; font-weight: 600; }
+    .option-btn.correct { background: #dcfce7; border-color: #22c55e; color: #15803d; font-weight: 700; }
+    .option-btn.wrong { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+
+    .action-group { display: flex; gap: 10px; margin-top: 15px; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; text-align: center; }
+    .btn-submit { background: #3b82f6; color: #fff; }
+    .btn-submit:hover { background: #2563eb; }
+    .btn-hint { background: #f59e0b; color: #fff; }
+    .btn-hint:hover { background: #d97706; }
+    .btn-nav { background: #e2e8f0; color: #475569; }
+
+    .hint-box { display: none; margin-top: 15px; padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.9rem; color: #92400e; white-space: pre-wrap; line-height: 1.6; }
+    .result-msg { margin-top: 15px; font-weight: 700; text-align: center; font-size: 1rem; }
+    .result-msg.correct { color: #16a34a; }
+    .result-msg.wrong { color: #dc2626; }
+
+    /* 모달 팝업 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+    .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; color: #1e293b; }
+    .modal-desc { font-size: 0.95rem; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
+    .modal-btns { display: flex; gap: 10px; }
+    .btn-modal-delete { background: #ef4444; color: #fff; }
+    .btn-modal-keep { background: #64748b; color: #fff; }
+
+    .empty-msg { text-align: center; padding: 40px 20px; color: #94a3b8; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>📖 하나바이블 퀴즈 대회</h1>
+    <div class="sub-title" id="statusText">원하는 문제 번호를 선택하여 풀어보세요.</div>
+  </header>
+
+  <!-- 1. 메인 표지 및 목록 화면 -->
+  <div id="homeView" class="view-section active">
+    <div class="dashboard-cards">
+      <div class="stat-card total">
+        <div>전체 문제</div>
+        <div class="num" id="statTotal">315</div>
+      </div>
+      <div class="stat-card correct">
+        <div>맞힌 문제</div>
+        <div class="num" id="statCorrect">0</div>
+      </div>
+      <div class="stat-card wrong">
+        <div>오답 문제</div>
+        <div class="num" id="statWrong">0</div>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tabAllBtn" onclick="switchTab('all')">📋 전체 문제 목록</button>
+      <button class="tab-btn wrong-tab" id="tabWrongBtn" onclick="switchTab('wrong')">📌 오답노트 모아보기</button>
+    </div>
+
+    <div class="grid-container" id="gridContainer"></div>
+    <div id="emptyWrongMsg" class="empty-msg" style="display: none;">🎉 현재 오답 문제가 없습니다!</div>
+  </div>
+
+  <!-- 2. 문제 개별 상세 풀기 화면 -->
+  <div id="quizView" class="view-section">
+    <button class="back-btn" onclick="goHome()">← 문제 목록으로 돌아가기</button>
+    
+    <div class="card">
+      <div><span class="lesson-badge" id="lessonBadge">과 정보</span></div>
+      <div class="question-text" id="questionText">문제를 불러오는 중입니다.</div>
+      <div class="options" id="optionsContainer"></div>
+      
+      <div class="action-group">
+        <button class="btn btn-hint" onclick="toggleHint()">💡 힌트 (성경 본문)</button>
+        <button class="btn btn-submit" id="submitBtn" onclick="checkAnswer()">정답 확인</button>
+      </div>
+
+      <div class="hint-box" id="hintBox"></div>
+      <div class="result-msg" id="resultMsg"></div>
+    </div>
+
+    <div class="action-group">
+      <button class="btn btn-nav" onclick="prevQuestion()">◀ 이전 문제</button>
+      <button class="btn btn-nav" onclick="nextQuestion()">다음 문제 ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- 오답 처리 선택 팝업 모달 -->
+<div class="modal-overlay" id="wrongModal">
+  <div class="modal-content">
+    <div class="modal-title">📌 오답노트 관리</div>
+    <div class="modal-desc">
+      이 문제를 맞히셨습니다!<br>
+      오답 목록에서 삭제하시겠습니까?
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-modal-delete" onclick="handleWrongDecision(true)">오답 지우기</button>
+      <button class="btn btn-modal-keep" onclick="handleWrongDecision(false)">오답 유지하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 문제 데이터 연결 -->
+<script src="questions.js"></script>
+
+<script>
+  let currentIndex = 0;
+  let userSelections = [];
+  let activeTab = 'all'; // 'all' 또는 'wrong'
+
+  // 로컬 스토리지 데이터 로드 (새로고침해도 기록 유지)
+  let solvedStatus = JSON.parse(localStorage.getItem('quiz_solvedStatus') || '{}'); // { qId: 'correct' | 'wrong' }
+  let wrongList = JSON.parse(localStorage.getItem('quiz_wrongList') || '[]'); // [qId1, qId2, ...]
+
+  window.onload = function() {
+    if (typeof quizData === 'undefined' || quizData.length === 0) {
+      alert("questions.js 파일을 찾을 수 없거나 데이터가 올바르지 않습니다.");
+      return;
+    }
+    updateDashboardStats();
+    renderGrid();
+  };
+
+  function updateDashboardStats() {
+    let correctCount = 0;
+    Object.values(solvedStatus).forEach(status => {
+      if (status === 'correct') correctCount++;
+    });
+
+    document.getElementById('statTotal').innerText = quizData.length;
+    document.getElementById('statCorrect').innerText = correctCount;
+    document.getElementById('statWrong').innerText = wrongList.length;
+    document.getElementById('tabWrongBtn').innerText = `📌 오답노트 모아보기 (${wrongList.length})`;
+  }
+
+  function saveStorage() {
+    localStorage.setItem('quiz_solvedStatus', JSON.stringify(solvedStatus));
+    localStorage.setItem('quiz_wrongList', JSON.stringify(wrongList));
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('tabAllBtn').classList.toggle('active', tab === 'all');
+    document.getElementById('tabWrongBtn').classList.toggle('active', tab === 'wrong');
+    renderGrid();
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('gridContainer');
+    const emptyMsg = document.getElementById('emptyWrongMsg');
+    grid.innerHTML = '';
+
+    let targetQuestions = quizData;
+    if (activeTab === 'wrong') {
+      targetQuestions = quizData.filter(q => wrongList.includes(q.id));
+    }
+
+    if (activeTab === 'wrong' && targetQuestions.length === 0) {
+      grid.style.display = 'none';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+
+    grid.style.display = 'grid';
+    emptyMsg.style.display = 'none';
+
+    targetQuestions.forEach((q) => {
+      const btn = document.createElement('button');
+      btn.className = 'grid-btn';
+      btn.innerText = q.id;
+
+      // 풀이 상태에 따른 색상 표기
+      if (solvedStatus[q.id] === 'correct') {
+        btn.classList.add('correct');
+      } else if (solvedStatus[q.id] === 'wrong') {
+        btn.classList.add('wrong');
+      }
+
+      const originalIndex = quizData.findIndex(item => item.id === q.id);
+      btn.onclick = () => openQuestion(originalIndex);
+      grid.appendChild(btn);
+    });
+  }
+
+  function openQuestion(index) {
+    currentIndex = index;
+    userSelections = [];
+
+    document.getElementById('homeView').classList.remove('active');
+    document.getElementById('quizView').classList.add('active');
+
+    const q = quizData[index];
+    document.getElementById('lessonBadge').innerText = `${q.lesson}과 | 힌트: ${q.hint || '교재 참고'}`;
+    document.getElementById('questionText').innerText = q.question;
+
+    document.getElementById('hintBox').style.display = 'none';
+    document.getElementById('resultMsg').innerText = '';
+    document.getElementById('submitBtn').disabled = false;
+
+    // 선택지 그리기
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = '';
+
+    q.options.forEach((optText, optIdx) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerText = `${optIdx + 1}. ${optText}`;
+      btn.onclick = () => selectOption(optIdx, btn, q.answer.length > 1);
+      optionsContainer.appendChild(btn);
+    });
+
+    // 성경 본문 힌트 세팅
+    const passage = (typeof biblePassages !== 'undefined' && biblePassages[q.lesson]) 
+      ? biblePassages[q.lesson] 
+      : "등록된 성경 본문이 없습니다. " + (q.hint || '');
+    document.getElementById('hintBox').innerText = passage;
+  }
+
+  function selectOption(optIdx, btnEl, isMultiple) {
+    if (isMultiple) {
+      const pos = userSelections.indexOf(optIdx);
+      if (pos > -1) {
+        userSelections.splice(pos, 1);
+        btnEl.classList.remove('selected');
+      } else {
+        userSelections.push(optIdx);
+        btnEl.classList.add('selected');
+      }
+    } else {
+      userSelections = [optIdx];
+      document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+      btnEl.classList.add('selected');
+    }
+  }
+
+  function checkAnswer() {
+    if (userSelections.length === 0) {
+      alert("정답을 선택해 주세요!");
+      return;
+    }
+
+    const q = quizData[currentIndex];
+    const correctAnswers = q.answer.sort();
+    const userAnswers = [...userSelections].sort();
+    const isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
+
+    const resultMsg = document.getElementById('resultMsg');
+    const optionBtns = document.querySelectorAll('.option-btn');
+
+    optionBtns.forEach((btn, idx) => {
+      if (correctAnswers.includes(idx)) {
+        btn.classList.add('correct');
+      } else if (userAnswers.includes(idx)) {
+        btn.classList.add('wrong');
+      }
+    });
+
+    const wasInWrongList = wrongList.includes(q.id);
+
+    if (isCorrect) {
+      resultMsg.innerText = "⭕ 정답입니다!";
+      resultMsg.className = "result-msg correct";
+      solvedStatus[q.id] = 'correct';
+
+      // 오답목록에 있던 문제를 맞혔을 경우 팝업창 출력
+      if (wasInWrongList) {
+        document.getElementById('wrongModal').style.display = 'flex';
+      }
+    } else {
+      resultMsg.innerText = `❌ 오답입니다. 정답은 ${correctAnswers.map(a => a + 1).join(', ')}번입니다.`;
+      resultMsg.className = "result-msg wrong";
+      solvedStatus[q.id] = 'wrong';
+
+      if (!wrongList.includes(q.id)) {
+        wrongList.push(q.id);
+      }
+    }
+
+    saveStorage();
+    updateDashboardStats();
+    document.getElementById('submitBtn').disabled = true;
+  }
+
+  function handleWrongDecision(shouldDelete) {
+    const q = quizData[currentIndex];
+    if (shouldDelete) {
+      wrongList = wrongList.filter(id => id !== q.id);
+    }
+    document.getElementById('wrongModal').style.display = 'none';
+    saveStorage();
+    updateDashboardStats();
+  }
+
+  function toggleHint() {
+    const hintBox = document.getElementById('hintBox');
+    hintBox.style.display = hintBox.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function goHome() {
+    document.getElementById('quizView').classList.remove('active');
+    document.getElementById('homeView').classList.add('active');
+    renderGrid();
+  }
+
+  function prevQuestion() {
+    if (currentIndex > 0) openQuestion(currentIndex - 1);
+  }
+
+  function nextQuestion() {
+    if (currentIndex < quizData.length - 1) openQuestion(currentIndex + 1);
+  }
+</script>
+
+</body>
+</html>
